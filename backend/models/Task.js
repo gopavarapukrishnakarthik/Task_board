@@ -12,6 +12,14 @@ const taskSchema = new mongoose.Schema(
     reasonForDelay: String,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    history: [
+      {
+        status: String,
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        changedAt: { type: Date, default: Date.now },
+        reason: String,
+      },
+    ],
   },
   { timestamps: true }
 );

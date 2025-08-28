@@ -7,7 +7,10 @@ const router = express.Router();
 // Get all tasks
 router.get("/", verifyToken, async (req, res) => {
   try {
-    const tasks = await Task.find().populate("createdBy assignedTo");
+    const tasks = await Task.find()
+      .populate("assignedTo", "name email") // ✅ assignedTo user info
+      .populate("history.changedBy", "name email"); // ✅ history user info
+
     res.json(tasks);
   } catch (err) {
     res
@@ -38,9 +41,33 @@ router.post("/", verifyToken, async (req, res) => {
 router.put("/:id", verifyToken, async (req, res) => {
   try {
     const update = req.body;
-    const task = await Task.findByIdAndUpdate(req.params.id, update, {
-      new: true,
-    });
+    const task = await Task.findById(req.params.id).populate(
+      "history.changedBy",
+      "name"
+    );
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // If status is changing, log it in history
+    if (update.status && update.status !== task.status) {
+      task.history.push({
+        status: update.status,
+        changedBy: req.user.userId,
+        changedAt: new Date(),
+        reason: update.reasonForDelay || "",
+      });
+      task.status = update.status;
+      task.reasonForDelay = update.reasonForDelay || "";
+    }
+
+    // Update other fields
+    if (update.title) task.title = update.title;
+    if (update.description) task.description = update.description;
+    if (update.assignedTo) task.assignedTo = update.assignedTo;
+
+    await task.save();
     res.json(task);
   } catch (err) {
     res

@@ -41,6 +41,9 @@ router.post("/login", async (req, res) => {
 
   const tokenData = {
     userId: user._id,
+    role: user.role, // ✅ add this
+    name: user.name, // optional, for convenience
+    email: user.email, // optional
   };
 
   const token = await jwt.sign(tokenData, process.env.JWT_SECRET, {
@@ -51,8 +54,9 @@ router.post("/login", async (req, res) => {
     .status(200)
     .cookie("token", token, {
       maxAge: 1 * 24 * 60 * 60 * 1000,
+      secure: false,
       httpsOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
     })
     .json({
       message: `Welcome Back ${user.name}`,
