@@ -8,6 +8,7 @@ const authRoutes = require("./routes/auth");
 const taskRoutes = require("./routes/tasks");
 
 const app = express();
+const PORT = 5000;
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -24,4 +25,6 @@ mongoose
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 
-app.listen(5000, () => console.log("Server running on http://localhost:5000"));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+});

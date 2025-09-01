@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
+import img2 from "../assets/img2.jpg";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -12,15 +13,17 @@ export default function Login() {
       const { data } = await API.post("/auth/login", form);
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/dashboard");
+      navigate("/home");
     } catch {
       alert("Invalid credentials");
     }
   };
 
   return (
-    <div className="bg-amber-300 h-screen flex justify-center">
-      <div className="border border-amber-50 backdrop-blur-2xl w-fit h-fit">
+    <div
+      className="h-screen flex justify-center items-center bg-cover bg-center"
+      style={{ backgroundImage: `url(${img2})` }}>
+      <div className="border border-amber-50 backdrop-blur-sm w-fit h-fit">
         <form onSubmit={handleSubmit} className="p-6 max-w-md mx-auto">
           <h2 className="text-xl font-bold mb-4">Login</h2>
           <input
