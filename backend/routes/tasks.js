@@ -4,12 +4,31 @@ const { verifyToken, requireLead } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Get all tasks
+// Utility: build query for search & filters
+function buildQuery({ status, search, due }) {
+  const query = {};
+  if (status) query.status = status; // filter by status
+  if (search) query.title = { $regex: search, $options: "i" }; // case-insensitive search
+  if (due === "overdue") query.dueDate = { $lt: new Date() };
+  if (due === "today") {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    query.dueDate = { $gte: start, $lte: end };
+  }
+  return query;
+}
+
+// Get all tasks (with search & filters)
 router.get("/", verifyToken, async (req, res) => {
   try {
-    const tasks = await Task.find()
-      .populate("assignedTo", "name email") // ✅ assignedTo user info
-      .populate("history.changedBy", "name email"); // ✅ history user info
+    const query = buildQuery(req.query);
+
+    const tasks = await Task.find(query)
+      .populate("assignedTo", "name email")
+      .populate("history.changedBy", "name email")
+      .sort({ createdAt: -1 });
 
     res.json(tasks);
   } catch (err) {
@@ -22,13 +41,18 @@ router.get("/", verifyToken, async (req, res) => {
 // Create a new task
 router.post("/", verifyToken, async (req, res) => {
   try {
-    const { title, description, assignedTo } = req.body;
+    const { title, description, assignedTo, dueDate } = req.body;
     const task = await Task.create({
       title,
       description,
+      dueDate,
       createdBy: req.user.id,
       assignedTo,
     });
+
+    // 🔥 Emit socket event
+    req.io.emit("taskCreated", task);
+
     res.json(task);
   } catch (err) {
     res
@@ -46,11 +70,8 @@ router.put("/:id", verifyToken, async (req, res) => {
       "name"
     );
 
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
+    if (!task) return res.status(404).json({ message: "Task not found" });
 
-    // If status is changing, log it in history
     if (update.status && update.status !== task.status) {
       task.history.push({
         status: update.status,
@@ -62,12 +83,16 @@ router.put("/:id", verifyToken, async (req, res) => {
       task.reasonForDelay = update.reasonForDelay || "";
     }
 
-    // Update other fields
     if (update.title) task.title = update.title;
     if (update.description) task.description = update.description;
     if (update.assignedTo) task.assignedTo = update.assignedTo;
+    if (update.dueDate) task.dueDate = update.dueDate;
 
     await task.save();
+
+    // 🔥 Emit socket event
+    req.io.emit("taskUpdated", task);
+
     res.json(task);
   } catch (err) {
     res
@@ -80,6 +105,10 @@ router.put("/:id", verifyToken, async (req, res) => {
 router.delete("/:id", verifyToken, requireLead, async (req, res) => {
   try {
     await Task.findByIdAndDelete(req.params.id);
+
+    // 🔥 Emit socket event
+    req.io.emit("taskDeleted", req.params.id);
+
     res.json({ message: "Task deleted" });
   } catch (err) {
     res

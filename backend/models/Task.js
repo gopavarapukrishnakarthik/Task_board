@@ -10,6 +10,7 @@ const taskSchema = new mongoose.Schema(
       default: "todo",
     },
     reasonForDelay: String,
+    dueDate: Date,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     history: [
