@@ -11,6 +11,9 @@ const taskSchema = new mongoose.Schema(
     },
     reasonForDelay: String,
     dueDate: Date,
+    deleted: { type: Boolean, default: false },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    deletedAt: { type: Date },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -27,6 +30,11 @@ const taskSchema = new mongoose.Schema(
     ],
   },
   { timestamps: true }
+);
+
+taskSchema.index(
+  { deletedAt: 1 },
+  { expireAfterSeconds: 60 * 60 * 24 * 30 } // 30 days
 );
 
 module.exports = mongoose.model("Task", taskSchema);
