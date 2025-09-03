@@ -76,4 +76,14 @@ router.post("/logout", (req, res) => {
   }
 });
 
+router.get("/users", async (req, res) => {
+  try {
+    const users = await User.find().select("_id name email role");
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ message: "Server error while fetching users" });
+  }
+});
+
 module.exports = router;

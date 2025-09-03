@@ -25,7 +25,7 @@ export default function Dashboard() {
   const handlehome = () => navigate("/home");
 
   return (
-    <div className="p-4 flex flex-col">
+    <div className="p-4 flex flex-col h-screen bg-gradient-to-b from-gray-100 via-gray-50 to-white">
       <div className="m-5 flex items-center justify-between">
         <button
           onClick={handlehome} // go back one step in history

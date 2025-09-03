@@ -4,7 +4,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import HomePage from "./pages/HomePage";
 import AdminsCorner from "./pages/AdminsCorner";
-import TicketStatus from "./pages/TicketStatus";
+import MyTasks from "./pages/MyTasks";
 
 function App() {
   return (
@@ -15,7 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/admin" element={<AdminsCorner />} />
-        <Route path="/tickets" element={<TicketStatus />} />
+        <Route path="/mytasks" element={<MyTasks />} />
       </Routes>
     </Router>
   );

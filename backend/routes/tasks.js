@@ -27,6 +27,7 @@ router.get("/", verifyToken, async (req, res) => {
 
     const tasks = await Task.find(query)
       .populate("assignedTo", "name email")
+      .populate("createdBy", "name email") // ✅ now always included
       .populate("history.changedBy", "name email")
       .sort({ createdAt: -1 });
 
@@ -46,8 +47,8 @@ router.post("/", verifyToken, async (req, res) => {
       title,
       description,
       dueDate,
-      createdBy: req.user.id,
       assignedTo,
+      createdBy: req.user.userId || req.user.id, // ✅ store creator
     });
 
     // 🔥 Emit socket event
@@ -75,7 +76,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     if (update.status && update.status !== task.status) {
       task.history.push({
         status: update.status,
-        changedBy: req.user.userId,
+        changedBy: req.user.userId || req.user.id, // ✅ track updater
         changedAt: new Date(),
         reason: update.reasonForDelay || "",
       });
@@ -114,6 +115,24 @@ router.delete("/:id", verifyToken, requireLead, async (req, res) => {
     res
       .status(500)
       .json({ message: "Error deleting task", error: err.message });
+  }
+});
+
+// Get tasks assigned to logged-in user
+router.get("/my-tasks", verifyToken, async (req, res) => {
+  try {
+    const tasks = await Task.find({
+      assignedTo: req.user.userId || req.user.id,
+    })
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(tasks);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Error fetching user tasks", error: err.message });
   }
 });
 
