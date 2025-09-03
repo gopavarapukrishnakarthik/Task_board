@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { verifyToken, requireLead } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
@@ -22,9 +23,12 @@ router.post("/register", async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      status: "pending",
     });
 
-    res.status(201).json({ message: "Registered successfully" });
+    res
+      .status(201)
+      .json({ message: "Registration submitted, waiting for lead approval" });
   } catch (err) {
     console.error("Registration error:", err);
     res.status(500).json({ message: "Server error during registration" });
@@ -35,6 +39,12 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email });
   if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+  if (user.status !== "active") {
+    return res
+      .status(403)
+      .json({ message: "Your account is not approved yet" });
+  }
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return res.status(400).json({ message: "Invalid credentials" });
@@ -83,6 +93,46 @@ router.get("/users", async (req, res) => {
   } catch (err) {
     console.error("Error fetching users:", err);
     res.status(500).json({ message: "Server error while fetching users" });
+  }
+});
+
+// Get pending users
+router.get("/pending-users", verifyToken, requireLead, async (req, res) => {
+  try {
+    const users = await User.find({ status: "pending" }).select(
+      "_id name email role status"
+    );
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching pending users" });
+  }
+});
+
+// Approve user
+router.put("/approve/:id", verifyToken, requireLead, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { status: "active" },
+      { new: true }
+    );
+    res.json({ message: "User approved", user });
+  } catch (err) {
+    res.status(500).json({ message: "Error approving user" });
+  }
+});
+
+// Reject user
+router.put("/reject/:id", verifyToken, requireLead, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    );
+    res.json({ message: "User rejected", user });
+  } catch (err) {
+    res.status(500).json({ message: "Error rejecting user" });
   }
 });
 

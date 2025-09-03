@@ -11,14 +11,18 @@ export default function Login() {
     e.preventDefault();
     try {
       const { data } = await API.post("/auth/login", form);
+
+      // Store token + user
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+
       navigate("/home");
-    } catch {
-      alert("Invalid credentials");
+    } catch (err) {
+      // 🔹 If account is not approved, backend sends 403 with custom message
+      const msg = err.response?.data?.message || "Login failed";
+      alert(msg);
     }
   };
-
   return (
     <div
       className="h-screen flex justify-center items-center bg-cover bg-center"

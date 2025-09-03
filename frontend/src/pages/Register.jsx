@@ -15,6 +15,7 @@ export default function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     await API.post("/auth/register", form);
+    alert("Registration successful! Your account is pending lead approval.");
     navigate("/");
   };
 

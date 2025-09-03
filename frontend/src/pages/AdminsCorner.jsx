@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
-import { Trash2, RotateCcw } from "lucide-react";
+import { Trash2, RotateCcw, Check, X } from "lucide-react";
 
 export default function AdminsCorner() {
   const [tasks, setTasks] = useState([]);
   const [deletedTasks, setDeletedTasks] = useState([]);
   const [users, setUsers] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
@@ -15,7 +16,7 @@ export default function AdminsCorner() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
-  // Fetch all users for dropdown
+  // Fetch all users for task assignment dropdown
   const fetchUsers = async () => {
     try {
       const res = await API.get("/auth/users");
@@ -35,7 +36,7 @@ export default function AdminsCorner() {
     }
   };
 
-  // Fetch deleted tasks (admins only)
+  // Fetch deleted tasks (leads only)
   const fetchDeletedTasks = async () => {
     if (user?.role !== "lead") return;
     try {
@@ -43,6 +44,37 @@ export default function AdminsCorner() {
       setDeletedTasks(res.data);
     } catch (error) {
       console.error("Error fetching deleted tasks:", error);
+    }
+  };
+
+  // Fetch pending users (leads only)
+  const fetchPendingUsers = async () => {
+    if (user?.role !== "lead") return;
+    try {
+      const res = await API.get("/auth/pending-users");
+      setPendingUsers(res.data);
+    } catch (err) {
+      console.error("Error fetching pending users:", err);
+    }
+  };
+
+  // Approve user
+  const approveUser = async (id) => {
+    try {
+      await API.put(`/auth/approve/${id}`);
+      fetchPendingUsers();
+    } catch (err) {
+      console.error("Failed to approve user", err);
+    }
+  };
+
+  // Reject user
+  const rejectUser = async (id) => {
+    try {
+      await API.put(`/auth/reject/${id}`);
+      fetchPendingUsers();
+    } catch (err) {
+      console.error("Failed to reject user", err);
     }
   };
 
@@ -96,6 +128,7 @@ export default function AdminsCorner() {
     fetchUsers();
     fetchTasks();
     fetchDeletedTasks();
+    fetchPendingUsers();
   }, []);
 
   return (
@@ -183,7 +216,7 @@ export default function AdminsCorner() {
         </ul>
       </div>
 
-      {/* Deleted Tasks (Visible only to Lead/Admin) */}
+      {/* Deleted Tasks (Lead only) */}
       {user?.role === "lead" && (
         <div className="mt-8">
           <h3 className="font-semibold mb-2">Deleted Tasks</h3>
@@ -209,6 +242,42 @@ export default function AdminsCorner() {
                     onClick={() => restoreTask(task._id)}>
                     <RotateCcw size={16} />
                   </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Pending User Approvals (Lead only) */}
+      {user?.role === "lead" && (
+        <div className="mt-8">
+          <h3 className="font-semibold mb-2">Pending User Approvals</h3>
+          {pendingUsers.length === 0 ? (
+            <p className="text-sm text-gray-500">No pending users</p>
+          ) : (
+            <ul className="grid grid-cols-2 gap-4">
+              {pendingUsers.map((u) => (
+                <li
+                  key={u._id}
+                  className="p-3 rounded shadow-sm flex justify-between bg-yellow-50 border border-yellow-200">
+                  <div>
+                    <h4 className="font-bold">{u.name}</h4>
+                    <p>{u.email}</p>
+                    <small className="text-gray-600">Role: {u.role}</small>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      className="text-green-600 hover:text-green-800"
+                      onClick={() => approveUser(u._id)}>
+                      <Check size={18} />
+                    </button>
+                    <button
+                      className="text-red-600 hover:text-red-800"
+                      onClick={() => rejectUser(u._id)}>
+                      <X size={18} />
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
