@@ -1,9 +1,12 @@
-import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import API from "../utils/api"; // axios instance
+import AdminsCorner from "./AdminsCorner";
+import MyTasks from "./MyTasks";
+import TaskBoard from "../components/TaskBoard";
 
-const HomePage = () => {
-  const navigate = useNavigate();
+export default function HomePage() {
   const [user, setUser] = useState(null);
+  const [activePage, setActivePage] = useState("home");
 
   // Load user details from localStorage
   useEffect(() => {
@@ -11,82 +14,71 @@ const HomePage = () => {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     } else {
-      navigate("/"); // redirect to login if no user
+      window.location.href = "/"; // redirect to login if no user
     }
-  }, [navigate]);
+  }, []);
 
   // Logout
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await API.post("/auth/logout", {}, { withCredentials: true });
       localStorage.removeItem("user");
+      localStorage.removeItem("token");
       window.location.href = "/";
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
 
-  // Navigation handlers
-  const handleEvent = () => navigate("/dashboard");
-  const handleInfo = () => navigate("/admin");
-  const handleData = () => navigate("/mytasks");
-
   return (
-    <div className="h-screen bg-gradient-to-b from-orange-100 via-pink-50 to-white flex flex-col items-center justify-center text-center relative">
-      {/* 🔹 User Header */}
-      <div className="absolute top-4 right-6 flex items-center gap-4">
-        {user && (
-          <>
-            <span className="text-black font-medium">
-              {user.name} ({user.role})
-            </span>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">
-              Logout
-            </button>
-          </>
-        )}
-      </div>
+    <div className="h-screen flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-gray-800 text-white flex flex-col p-4">
+        <h2 className="text-xl font-bold mb-6">
+          {user?.name} ({user?.role})
+        </h2>
 
-      {/* Header Section */}
-      <div>
-        <h1 className="text-3xl font-bold mb-4">
-          Welcome team to the Internal Support Portal
-        </h1>
-        <p className="text-lg mb-8">
-          Here you can view tasks, add new tasks, and review their status.
-        </p>
-      </div>
-
-      {/* Buttons Section */}
-      <div className="flex flex-col gap-4 w-64">
-        <button
-          onClick={handleEvent}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-          Task's Dashboard
-        </button>
-
-        {/* Only show if role = lead */}
-        {user?.role === "lead" && (
+        <nav className="space-y-3">
           <button
-            onClick={handleInfo}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-            Lead's Board
+            className={`w-full text-left px-3 py-2 rounded ${
+              activePage === "home" ? "bg-gray-700" : ""
+            }`}
+            onClick={() => setActivePage("home")}>
+            🏠 Home
           </button>
-        )}
 
-        <button
-          onClick={handleData}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
-          My Tasks
-        </button>
+          {user?.role === "lead" && (
+            <button
+              className={`w-full text-left px-3 py-2 rounded ${
+                activePage === "admin" ? "bg-gray-700" : ""
+              }`}
+              onClick={() => setActivePage("admin")}>
+              ⚙️ Lead Control Panel
+            </button>
+          )}
+
+          <button
+            className={`w-full text-left px-3 py-2 rounded ${
+              activePage === "tasks" ? "bg-gray-700" : ""
+            }`}
+            onClick={() => setActivePage("tasks")}>
+            ✅ My Tasks
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="w-full text-left px-3 py-2 rounded">
+            🚪 Logout
+          </button>
+        </nav>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-6 overflow-y-auto">
+        {activePage === "home" && <TaskBoard />}
+        {activePage === "admin" && <AdminsCorner />}
+        {activePage === "tasks" && <MyTasks />}
       </div>
     </div>
   );
-};
-
-export default HomePage;
+}

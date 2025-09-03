@@ -122,8 +122,6 @@ export default function AdminsCorner() {
     }
   };
 
-  const handleHome = () => navigate("/home");
-
   useEffect(() => {
     fetchUsers();
     fetchTasks();
@@ -135,14 +133,7 @@ export default function AdminsCorner() {
     <div className="p-6 h-full bg-gradient-to-b from-lime-200 via-lime-100 to-white">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <button
-          onClick={handleHome}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-          Back
-        </button>
-        <h1 className="text-lg font-bold">
-          Welcome, {user?.name} ({user?.role})
-        </h1>
+        <h1 className="text-lg font-bold">{user?.name}'s Management Console</h1>
       </div>
 
       {/* Task Form */}

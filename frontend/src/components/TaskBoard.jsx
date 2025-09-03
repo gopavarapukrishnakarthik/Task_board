@@ -12,13 +12,16 @@ const columns = {
   done: "Completed",
 };
 
-export default function TaskBoard({ user }) {
+export default function TaskBoard() {
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [search, setSearch] = useState("");
   const [dueFilter, setDueFilter] = useState("");
+
+  // ✅ Get logged-in user from localStorage
+  const user = JSON.parse(localStorage.getItem("user"));
 
   // Fetch tasks
   const fetchTasks = async () => {
@@ -106,17 +109,24 @@ export default function TaskBoard({ user }) {
   }, []);
 
   return (
-    <div className="p-4">
+    <div className="p-4 flex flex-col h-screen bg-gradient-to-b from-gray-100 via-gray-50 to-white">
+      {/* ✅ Page Header */}
+      <div className="m-5 text-center">
+        <h1 className="text-xl font-semibold ">
+          Welcome, {user?.name} ({user?.role})
+        </h1>
+      </div>
+
       {/* Task creation */}
       <div className="flex flex-wrap justify-center gap-2 mb-4">
         <input
-          className="border p-2 rounded w-48"
+          className="border p-2 rounded w-96"
           placeholder="New task title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
         <input
-          className="border p-2 rounded w-lvh"
+          className="border p-2 rounded w-96"
           placeholder="Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -239,7 +249,7 @@ export default function TaskBoard({ user }) {
                                   Reason: {task.reasonForDelay}
                                 </div>
                               )}
-                              {user.role === "lead" && (
+                              {user?.role === "lead" && (
                                 <button
                                   className="text-red-500 text-xs mt-2 hover:underline"
                                   onClick={() => deleteTask(task._id)}>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../utils/api";
-import img2 from "../assets/img2.jpg";
+import img10 from "../assets/img10.jpg";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -26,36 +26,36 @@ export default function Login() {
   return (
     <div
       className="h-screen flex justify-center items-center bg-cover bg-center"
-      style={{ backgroundImage: `url(${img2})` }}>
-      <div className="border border-amber-50 backdrop-blur-sm w-fit h-fit">
-        <form onSubmit={handleSubmit} className="p-6 max-w-md mx-auto">
+      style={{ backgroundImage: `url(${img10})` }}>
+      <div className="border border-amber-50 backdrop-blur-sm w-fit h-fit rounded-2xl ">
+        <form
+          onSubmit={handleSubmit}
+          className="p-6 max-w-md mx-auto text-center">
           <h2 className="text-xl font-bold mb-4">Login</h2>
           <input
-            className="input"
+            className="input border-gray-500"
             type="email"
             placeholder="Email"
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             required
           />
           <input
-            className="input mt-2"
+            className="input mt-2 border-gray-500"
             type="password"
             placeholder="Password"
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
           />
-          <div className="flex flex-col">
-            <button className="btn mt-4">Login</button>
-            <p className="pt-5">
-              Don’t have an account?{" "}
-              <a
-                className="text-blue-600 hover:underline hover:text-blue-800"
-                href="/register">
-                Click here to register
-              </a>{" "}
-              with proper role and then log in.
-            </p>
-          </div>
+          <button className="btn mt-4 w-32">Login</button>
+          <p className="mt-4 text-sm text-gray-600">
+            Don’t have an account?{" "}
+            <a
+              className="text-blue-600 hover:underline hover:text-blue-800"
+              href="/register">
+              Click here to register
+            </a>{" "}
+            with proper role and then log in.
+          </p>
         </form>
       </div>
     </div>

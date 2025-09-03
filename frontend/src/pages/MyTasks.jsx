@@ -48,14 +48,8 @@ export default function MyTasks() {
     <div className="p-6 h-screen bg-gradient-to-b from-sky-100 via-sky-50 to-white">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
-        <button
-          onClick={() => navigate("/home")}
-          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">
-          Back
-        </button>
-
         <h1 className="text-lg font-bold">
-          My Tasks – {user?.name} ({user?.role})
+          Tasks assigned and created – {user?.name}
         </h1>
       </div>
 
