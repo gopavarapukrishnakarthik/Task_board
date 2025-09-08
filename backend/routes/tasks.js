@@ -20,7 +20,7 @@ function buildQuery({ status, search, due }) {
   return query;
 }
 
-// Get all active tasks
+// ✅ Get all active tasks
 router.get("/", verifyToken, async (req, res) => {
   try {
     const query = buildQuery(req.query);
@@ -40,7 +40,7 @@ router.get("/", verifyToken, async (req, res) => {
   }
 });
 
-// Create a new task
+// ✅ Create a new task
 router.post("/", verifyToken, async (req, res) => {
   try {
     const { title, description, assignedTo, dueDate } = req.body;
@@ -72,7 +72,7 @@ router.post("/", verifyToken, async (req, res) => {
   }
 });
 
-// Update a task (edit fields but not status directly)
+// ✅ Update a task (status, fields, assignedTo, reason)
 router.put("/:id", verifyToken, async (req, res) => {
   try {
     const update = req.body;
@@ -92,7 +92,19 @@ router.put("/:id", verifyToken, async (req, res) => {
         changedAt: new Date(),
       };
       task.assignedTo = update.assignedTo;
-      task.history.push(historyEntry);
+    }
+
+    // ✅ Track status change
+    if (update.status && update.status !== task.status) {
+      historyEntry = {
+        status: update.status,
+        assignedTo: task.assignedTo,
+        changedBy: req.user.userId || req.user.id,
+        changedAt: new Date(),
+        reason: update.reasonForDelay || "",
+      };
+      task.status = update.status;
+      task.reasonForDelay = update.reasonForDelay || "";
     }
 
     // Track other editable fields
@@ -100,13 +112,18 @@ router.put("/:id", verifyToken, async (req, res) => {
     if (update.description) task.description = update.description;
     if (update.dueDate) task.dueDate = update.dueDate;
 
+    // Only push history if something meaningful changed
+    if (historyEntry) task.history.push(historyEntry);
+
     await task.save();
 
-    req.io.emit(
-      "taskUpdated",
-      await task.populate("assignedTo createdBy history.changedBy")
-    );
-    res.json(task);
+    const populatedTask = await Task.findById(task._id)
+      .populate("assignedTo", "name email role")
+      .populate("createdBy", "name email role")
+      .populate("history.changedBy", "name email role");
+
+    req.io.emit("taskUpdated", populatedTask);
+    res.json(populatedTask);
   } catch (err) {
     res
       .status(500)
@@ -114,7 +131,7 @@ router.put("/:id", verifyToken, async (req, res) => {
   }
 });
 
-// Soft Delete a task (Lead only)
+// ✅ Soft Delete a task (Lead only)
 router.delete("/:id", verifyToken, requireLead, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -144,7 +161,7 @@ router.delete("/:id", verifyToken, requireLead, async (req, res) => {
   }
 });
 
-// Restore task (Lead only)
+// ✅ Restore task (Lead only)
 router.put("/:id/restore", verifyToken, requireLead, async (req, res) => {
   try {
     const task = await Task.findById(req.params.id);
@@ -156,10 +173,9 @@ router.put("/:id/restore", verifyToken, requireLead, async (req, res) => {
     task.deletedBy = null;
     task.deletedAt = null;
 
-    // Preserve old assigned user if exists, else allow reassignment via req.body
     if (req.body.assignedTo) {
       task.assignedTo = req.body.assignedTo;
-    } // else keep task.assignedTo as is (old owner)
+    }
 
     // Add to history
     task.history.push({
@@ -167,12 +183,11 @@ router.put("/:id/restore", verifyToken, requireLead, async (req, res) => {
       changedBy: req.user.userId || req.user.id,
       changedAt: new Date(),
       reason: `Restored by ${req.user.name}`,
-      assignedTo: task.assignedTo, // record who it is assigned to after restore
+      assignedTo: task.assignedTo,
     });
 
     await task.save();
 
-    // Populate for frontend
     const populatedTask = await Task.findById(task._id)
       .populate("assignedTo", "name email role")
       .populate("createdBy", "name email role")
@@ -189,7 +204,7 @@ router.put("/:id/restore", verifyToken, requireLead, async (req, res) => {
   }
 });
 
-// Get deleted tasks (Lead only)
+// ✅ Get deleted tasks (Lead only)
 router.get("/deleted/all", verifyToken, requireLead, async (req, res) => {
   try {
     const tasks = await Task.find({ deleted: true })

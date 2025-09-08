@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../utils/api";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import io from "socket.io-client";
 
 const socket = io("http://192.168.0.118:5000"); // adjust when deploying
@@ -74,7 +74,8 @@ export default function TaskBoard() {
   // Drag & Drop handler
   const onDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
-    if (!destination || destination.droppableId === source.droppableId) return;
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId) return;
 
     const taskId = draggableId;
     const newStatus = destination.droppableId;
@@ -112,7 +113,7 @@ export default function TaskBoard() {
     <div className="p-4 flex flex-col h-screen bg-gradient-to-b from-gray-100 via-gray-50 to-white">
       {/* ✅ Page Header */}
       <div className="m-5 text-center">
-        <h1 className="text-xl font-semibold ">
+        <h1 className="text-xl font-semibold">
           Welcome, {user?.name} ({user?.role})
         </h1>
       </div>
@@ -195,7 +196,7 @@ export default function TaskBoard() {
                     .map((task, index) => {
                       // Default card style
                       let cardClasses =
-                        "p-3 rounded-lg shadow mb-2 cursor-grab hover:shadow-md";
+                        "p-3 rounded-lg shadow mb-2 cursor-grab hover:shadow-md relative";
 
                       // Apply due date color coding
                       if (task.dueDate) {
