@@ -4,6 +4,7 @@ import AdminsCorner from "./AdminsCorner";
 import MyTasks from "./MyTasks";
 import TaskBoard from "../components/TaskBoard";
 import TicketBoard from "../components/TicketBoard";
+import JiraSection from "../components/JiraBoard";
 
 export default function HomePage() {
   const [user, setUser] = useState(null);
@@ -75,6 +76,14 @@ export default function HomePage() {
           </button>
 
           <button
+            className={`w-full text-left px-3 py-2 rounded ${
+              activePage === "jiratickets" ? "bg-gray-700" : ""
+            }`}
+            onClick={() => setActivePage("jiratickets")}>
+            📝 Jira Tickets
+          </button>
+
+          <button
             onClick={handleLogout}
             className="w-full text-left px-3 py-2 rounded">
             🚪 Logout
@@ -88,6 +97,7 @@ export default function HomePage() {
         {activePage === "admin" && <AdminsCorner />}
         {activePage === "tasks" && <MyTasks />}
         {activePage === "tickets" && <TicketBoard />}
+        {activePage === "jiratickets" && <JiraSection />}
       </div>
     </div>
   );

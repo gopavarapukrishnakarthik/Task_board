@@ -8,6 +8,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/auth");
 const taskRoutes = require("./routes/tasks");
 const ticketRoutes = require("./routes/tickets");
+const jiraRoutes = require("./routes/jira");
 
 const app = express();
 const server = http.createServer(app);
@@ -38,6 +39,7 @@ mongoose
 app.use("/api/auth", authRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/tickets", ticketRoutes);
+app.use("/api/jira", jiraRoutes);
 
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
