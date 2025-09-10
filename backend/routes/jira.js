@@ -1,7 +1,7 @@
 const express = require("express");
 const axios = require("axios");
 const { verifyToken } = require("../middleware/authMiddleware");
-
+const JiraTicket = require("../models/JiraTicket");
 const router = express.Router();
 require("dotenv").config();
 
@@ -16,7 +16,10 @@ const authHeader = {
   Accept: "application/json",
 };
 
-// ✅ Get BIOT tickets in selected statuses (case-insensitive, includes unassigned)
+// Allowed statuses for board and schema
+const ALLOWED_STATUSES = ["InProgress", "Waiting for customer", "Escalated"];
+
+// 🔹 Fetch BIOT tickets (Realtime from Jira)
 router.get("/board-issues", verifyToken, async (req, res) => {
   try {
     const jql = `project = BIOT ORDER BY created DESC`;
@@ -28,32 +31,94 @@ router.get("/board-issues", verifyToken, async (req, res) => {
       { headers: authHeader }
     );
 
-    const allIssues = response.data.issues.map((issue) => ({
-      _id: issue.id,
-      ticketNumber: issue.key,
-      title: issue.fields.summary,
-      description:
-        issue.fields.description?.plainText ||
-        issue.fields.description?.content?.[0]?.content?.[0]?.text ||
-        "",
-      status: issue.fields.status?.name || "Unknown",
-      assignedTo: {
-        name: issue.fields.assignee?.displayName || "Unassigned",
-        email: issue.fields.assignee?.emailAddress || null,
-      },
-      dueDate: issue.fields.duedate || null,
-    }));
+    const issues = response.data.issues
+      .map((issue) => {
+        const status = issue.fields.status?.name || "InProgress";
 
-    // ✅ Only keep specific statuses (case-insensitive)
-    const VALID_STATUSES = ["InProgress", "Waiting for customer", "Escalated"];
-    const filteredIssues = allIssues.filter((issue) =>
-      VALID_STATUSES.some((s) => s.toLowerCase() === issue.status.toLowerCase())
-    );
+        if (!ALLOWED_STATUSES.includes(status)) return null;
 
-    res.json(filteredIssues);
+        return {
+          _id: issue.id,
+          ticketNumber: issue.key,
+          title: issue.fields.summary,
+          description:
+            issue.fields.description?.plainText ||
+            issue.fields.description?.content?.[0]?.content?.[0]?.text ||
+            "",
+          status,
+          assignedTo: issue.fields.assignee ? issue.fields.assignee.id : null,
+          assignedToName: issue.fields.assignee?.displayName || "Unassigned",
+          dueDate: issue.fields.duedate || null,
+          history: [],
+        };
+      })
+      .filter(Boolean);
+
+    res.json(issues);
   } catch (err) {
     console.error("Jira API error:", err.response?.data || err.message);
     res.status(500).json({ message: "Error fetching Jira issues" });
+  }
+});
+
+// 🔹 Update Jira ticket by ticketNumber
+router.put("/update-ticket/:ticketNumber", verifyToken, async (req, res) => {
+  try {
+    const { ticketNumber } = req.params;
+
+    let ticket = await JiraTicket.findOne({ ticketNumber });
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket not found in DB" });
+    }
+
+    const updaterId = req.user.userId || req.user.id;
+    const updaterName = req.user.name || "Unknown";
+
+    const allowedFields = [
+      "cpVersion",
+      "site",
+      "environment",
+      "filesReceived",
+      "affectedComponents",
+      "rca",
+      "notes",
+      "status",
+      "keyPoints",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined && req.body[field] !== ticket[field]) {
+        // Sanitize status
+        if (field === "status" && !ALLOWED_STATUSES.includes(req.body[field])) {
+          return; // skip invalid status
+        }
+
+        ticket.history.push({
+          field,
+          oldValue: ticket[field],
+          value: req.body[field],
+          changedBy: updaterId,
+          changedByName: updaterName,
+          changedAt: new Date(),
+        });
+
+        ticket[field] = req.body[field];
+      }
+    });
+
+    await ticket.save();
+
+    // Emit via Socket.IO if available
+    if (req.io) req.io.emit("ticketUpdated", ticket);
+
+    res.json(ticket);
+  } catch (err) {
+    console.error("Error updating ticket:", err.response?.data || err.message);
+    res.status(500).json({
+      message: "Error updating ticket",
+      error: err.response?.data || err.message,
+    });
   }
 });
 
