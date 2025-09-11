@@ -1,3 +1,4 @@
+// routes/jira.js
 const express = require("express");
 const axios = require("axios");
 const { verifyToken } = require("../middleware/authMiddleware");
@@ -16,10 +17,9 @@ const authHeader = {
   Accept: "application/json",
 };
 
-// Allowed statuses for board and schema
 const ALLOWED_STATUSES = ["InProgress", "Waiting for customer", "Escalated"];
 
-// 🔹 Fetch BIOT tickets (Realtime from Jira)
+// 🔹 Fetch Jira issues + merge DB fields
 router.get("/board-issues", verifyToken, async (req, res) => {
   try {
     const jql = `project = BIOT ORDER BY created DESC`;
@@ -27,18 +27,16 @@ router.get("/board-issues", verifyToken, async (req, res) => {
     const response = await axios.get(
       `${JIRA_BASE_URL}/rest/api/3/search?jql=${encodeURIComponent(
         jql
-      )}&maxResults=500`,
+      )}&maxResults=100`,
       { headers: authHeader }
     );
 
-    const issues = response.data.issues
+    const jiraIssues = response.data.issues
       .map((issue) => {
         const status = issue.fields.status?.name || "InProgress";
-
         if (!ALLOWED_STATUSES.includes(status)) return null;
 
         return {
-          _id: issue.id,
           ticketNumber: issue.key,
           title: issue.fields.summary,
           description:
@@ -46,33 +44,57 @@ router.get("/board-issues", verifyToken, async (req, res) => {
             issue.fields.description?.content?.[0]?.content?.[0]?.text ||
             "",
           status,
-          assignedTo: issue.fields.assignee ? issue.fields.assignee.id : null,
+          assignedTo: issue.fields.assignee?.accountId || null,
           assignedToName: issue.fields.assignee?.displayName || "Unassigned",
           dueDate: issue.fields.duedate || null,
-          history: [],
         };
       })
       .filter(Boolean);
 
-    res.json(issues);
+    const ticketNumbers = jiraIssues.map((i) => i.ticketNumber);
+    const dbTickets = await JiraTicket.find({
+      ticketNumber: { $in: ticketNumbers },
+    }).lean();
+
+    // Merge Jira + DB fields
+    const merged = await Promise.all(
+      jiraIssues.map(async (jiraTicket) => {
+        let dbTicket = dbTickets.find(
+          (t) => t.ticketNumber === jiraTicket.ticketNumber
+        );
+
+        // If not found in DB, create it
+        if (!dbTicket) {
+          dbTicket = await JiraTicket.create({
+            ticketNumber: jiraTicket.ticketNumber,
+            title: jiraTicket.title,
+            description: jiraTicket.description,
+            status: jiraTicket.status,
+          });
+        }
+
+        return { ...jiraTicket, ...dbTicket };
+      })
+    );
+
+    res.json(merged);
   } catch (err) {
     console.error("Jira API error:", err.response?.data || err.message);
     res.status(500).json({ message: "Error fetching Jira issues" });
   }
 });
 
-// 🔹 Update Jira ticket by ticketNumber
+// 🔹 Update Jira ticket (custom fields only)
 router.put("/update-ticket/:ticketNumber", verifyToken, async (req, res) => {
   try {
     const { ticketNumber } = req.params;
-
     let ticket = await JiraTicket.findOne({ ticketNumber });
 
     if (!ticket) {
       return res.status(404).json({ message: "Ticket not found in DB" });
     }
 
-    const updaterId = req.user.userId || req.user.id;
+    const updaterId = req.user.userId;
     const updaterName = req.user.name || "Unknown";
 
     const allowedFields = [
@@ -89,11 +111,6 @@ router.put("/update-ticket/:ticketNumber", verifyToken, async (req, res) => {
 
     allowedFields.forEach((field) => {
       if (req.body[field] !== undefined && req.body[field] !== ticket[field]) {
-        // Sanitize status
-        if (field === "status" && !ALLOWED_STATUSES.includes(req.body[field])) {
-          return; // skip invalid status
-        }
-
         ticket.history.push({
           field,
           oldValue: ticket[field],
@@ -102,23 +119,17 @@ router.put("/update-ticket/:ticketNumber", verifyToken, async (req, res) => {
           changedByName: updaterName,
           changedAt: new Date(),
         });
-
         ticket[field] = req.body[field];
       }
     });
 
     await ticket.save();
-
-    // Emit via Socket.IO if available
     if (req.io) req.io.emit("ticketUpdated", ticket);
 
     res.json(ticket);
   } catch (err) {
     console.error("Error updating ticket:", err.response?.data || err.message);
-    res.status(500).json({
-      message: "Error updating ticket",
-      error: err.response?.data || err.message,
-    });
+    res.status(500).json({ message: "Error updating ticket" });
   }
 });
 

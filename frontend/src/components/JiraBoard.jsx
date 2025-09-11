@@ -1,3 +1,4 @@
+// src/components/JiraBoard.js
 import React, { useEffect, useState } from "react";
 import API from "../utils/api";
 
@@ -17,24 +18,28 @@ export default function JiraBoard() {
     status: "",
     keyPoints: "",
   });
+  const [showHistory, setShowHistory] = useState(false); // 🔹 toggle for history
 
   useEffect(() => {
-    async function fetchBoardIssues() {
-      try {
-        const res = await API.get("/jira/board-issues");
-        setIssues(res.data);
-      } catch (err) {
-        console.error("Error fetching Jira board issues", err);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchBoardIssues();
   }, []);
 
+  const fetchBoardIssues = async () => {
+    try {
+      const res = await API.get("/jira/board-issues");
+      setIssues(res.data);
+    } catch (err) {
+      console.error("Error fetching Jira board issues", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const statuses = ["InProgress", "Waiting for customer", "Escalated"];
   const grouped = statuses.reduce((acc, status) => {
-    acc[status] = issues.filter((i) => i.status === status);
+    acc[status] = issues.filter(
+      (i) => i.status.toLowerCase() === status.toLowerCase()
+    );
     return acc;
   }, {});
 
@@ -52,6 +57,7 @@ export default function JiraBoard() {
       keyPoints: ticket.keyPoints || "",
     });
     setHistory(ticket.history || []);
+    setShowHistory(false); // reset when opening
   };
 
   const closeModal = () => {
@@ -69,8 +75,9 @@ export default function JiraBoard() {
     try {
       const res = await API.put(
         `/jira/update-ticket/${selectedTicket.ticketNumber}`,
-        formData
+        { ...formData }
       );
+
       setIssues((prev) =>
         prev.map((t) =>
           t.ticketNumber === selectedTicket.ticketNumber ? res.data : t
@@ -82,7 +89,7 @@ export default function JiraBoard() {
     }
   };
 
-  if (loading) return <p className="text-gray-500">Loading BIOT tickets...</p>;
+  if (loading) return <p>Loading Jira tickets...</p>;
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-4 mt-6">
@@ -98,8 +105,8 @@ export default function JiraBoard() {
               <ul className="space-y-2">
                 {grouped[status].map((ticket) => (
                   <li
-                    key={ticket._id}
-                    className="border border-gray-200 rounded-lg p-3 bg-white hover:shadow-md transition cursor-pointer"
+                    key={ticket.ticketNumber}
+                    className="border p-3 rounded bg-white cursor-pointer hover:shadow-md"
                     onClick={() => openTicket(ticket)}>
                     <p className="font-semibold text-blue-900">
                       {ticket.ticketNumber} — {ticket.title}
@@ -107,11 +114,6 @@ export default function JiraBoard() {
                     <p className="text-sm text-gray-600">
                       Assigned: {ticket.assignedToName || "Unassigned"}
                     </p>
-                    {ticket.dueDate && (
-                      <p className="text-sm text-red-600">
-                        Due: {new Date(ticket.dueDate).toLocaleDateString()}
-                      </p>
-                    )}
                   </li>
                 ))}
               </ul>
@@ -123,10 +125,8 @@ export default function JiraBoard() {
       {/* Modal */}
       {selectedTicket && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-11/12 md:w-3/4 lg:w-2/3 p-6 max-h-[90vh] overflow-y-auto relative">
-            <button
-              className="absolute top-2 right-2 text-gray-600 hover:text-black"
-              onClick={closeModal}>
+          <div className="bg-white rounded-lg w-11/12 md:w-3/4 p-6 max-h-[90vh] overflow-y-auto relative">
+            <button className="absolute top-2 right-2" onClick={closeModal}>
               ✖
             </button>
 
@@ -138,61 +138,68 @@ export default function JiraBoard() {
               {[
                 { label: "CP Version", name: "cpVersion" },
                 { label: "Site", name: "site" },
-                { label: "Prod/Test", name: "environment" },
-                { label: "Files received", name: "filesReceived" },
-                { label: "Affected components", name: "affectedComponents" },
+                { label: "Environment", name: "environment" },
+                { label: "Files Received", name: "filesReceived" },
+                { label: "Affected Components", name: "affectedComponents" },
                 { label: "RCA", name: "rca" },
                 { label: "Key Points", name: "keyPoints" },
               ].map((field) => (
                 <div key={field.name}>
-                  <label className="block text-gray-700">{field.label}</label>
+                  <label className="block">{field.label}</label>
                   <input
                     type="text"
                     name={field.name}
                     value={formData[field.name]}
                     onChange={handleChange}
-                    className="mt-1 w-full border rounded px-2 py-1"
+                    className="w-full border rounded px-2 py-1"
                   />
                 </div>
               ))}
             </div>
 
             <div className="mt-4">
-              <label className="block text-gray-700">
-                Notes / More details
-              </label>
+              <label className="block">Notes</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
-                className="mt-1 w-full border rounded px-2 py-1 h-24"
+                className="w-full border rounded px-2 py-1 h-24"
               />
             </div>
 
             <div className="mt-4 flex justify-end gap-3">
               <button
                 onClick={closeModal}
-                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400">
+                className="px-4 py-2 bg-gray-300 rounded">
                 Cancel
               </button>
               <button
                 onClick={saveTicket}
-                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                className="px-4 py-2 bg-blue-600 text-white rounded">
                 Save
               </button>
             </div>
 
+            {/* 🔹 Show/Hide History Toggle */}
             {history.length > 0 && (
               <div className="mt-6">
-                <h4 className="font-semibold mb-2">History</h4>
-                <ul className="space-y-1 max-h-48 overflow-y-auto">
-                  {history.map((h, idx) => (
-                    <li key={idx} className="text-sm text-gray-600">
-                      {h.changedByName || "Unknown"} changed {h.field} to "
-                      {h.value}" on {new Date(h.changedAt).toLocaleString()}
-                    </li>
-                  ))}
-                </ul>
+                <button
+                  className="text-gray-500 underline"
+                  onClick={() => setShowHistory(!showHistory)}>
+                  {showHistory ? "Hide History" : "Show History"}
+                </button>
+
+                {showHistory && (
+                  <ul className="text-sm mt-3 border rounded p-3 bg-gray-50 max-h-64 overflow-y-auto">
+                    {history.map((h, idx) => (
+                      <li key={idx} className="mb-2">
+                        <strong>{h.changedByName}</strong> changed{" "}
+                        <em>{h.field}</em> → "{h.value}" on{" "}
+                        {new Date(h.changedAt).toLocaleString()}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
