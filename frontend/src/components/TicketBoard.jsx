@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import API from "../utils/api";
 import io from "socket.io-client";
 import { Trash2, RotateCcw, Check, Edit } from "lucide-react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
-const socket = io("http://192.168.0.118:5000"); // adjust backend URL
+const socket = io("http://localhost:5000"); // adjust backend URL
 
 export default function TicketBoard() {
   const [tickets, setTickets] = useState([]);

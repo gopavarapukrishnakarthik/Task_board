@@ -3,7 +3,7 @@ import API from "../utils/api";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import io from "socket.io-client";
 
-const socket = io("http://192.168.0.118:5000"); // adjust when deploying
+const socket = io("http://localhost:5000"); // adjust when deploying
 
 const columns = {
   todo: "To Do",

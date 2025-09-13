@@ -3,7 +3,7 @@ import API from "../utils/api";
 import io from "socket.io-client";
 import { Trash2, RotateCcw, Check, X } from "lucide-react";
 
-const socket = io("http://192.168.0.118:5000"); // adjust backend host
+const socket = io("http://localhost:5000"); // adjust backend host
 
 export default function AdminsCorner() {
   const [tasks, setTasks] = useState([]);
@@ -169,7 +169,7 @@ export default function AdminsCorner() {
 
       {/* Active Tasks */}
       <div>
-        <h2 className="font-semibold mb-2">Tasks Created by Me</h2>
+        <h2 className="font-semibold mb-2">Manage Tasks</h2>
         <ul className="grid grid-cols-2 gap-4">
           {tasks.map((task) => (
             <li
